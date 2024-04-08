@@ -33,16 +33,17 @@ module markdown
 #include "md4c.h"
 #include "md4c-html.h"
 
-type BlockFn = fn (t MD_BLOCKTYPE, d voidptr, u voidptr) int
+type BlockFn = fn (t BlockKind, d voidptr, u voidptr) int
 
-type SpanFn = fn (t MD_SPANTYPE, d voidptr, u voidptr) int
+type SpanFn = fn (t SpanKind, d voidptr, u voidptr) int
 
-type TextFn = fn (t MD_TEXTTYPE, tx &char, s u32, u voidptr) int
+type TextFn = fn (t TextKind, tx &char, s u32, u voidptr) int
 
 type DebugFn = fn (m &char, u voidptr)
 
+@[deprecated: 'use BlockKind instead']
 pub enum MD_BLOCKTYPE {
-	md_block_doc   = 0
+	md_block_doc
 	md_block_quote
 	md_block_ul
 	md_block_ol
@@ -60,8 +61,28 @@ pub enum MD_BLOCKTYPE {
 	md_block_td
 }
 
+pub enum BlockKind {
+	doc   = C.MD_BLOCK_DOC
+	quote = C.MD_BLOCK_QUOTE
+	ul    = C.MD_BLOCK_UL
+	ol    = C.MD_BLOCK_OL
+	li    = C.MD_BLOCK_LI
+	hr    = C.MD_BLOCK_HR
+	h     = C.MD_BLOCK_H
+	code  = C.MD_BLOCK_CODE
+	html  = C.MD_BLOCK_HTML
+	p     = C.MD_BLOCK_P
+	table = C.MD_BLOCK_TABLE
+	thead = C.MD_BLOCK_THEAD
+	tbody = C.MD_BLOCK_TBODY
+	tr    = C.MD_BLOCK_TR
+	th    = C.MD_BLOCK_TH
+	td    = C.MD_BLOCK_TD
+}
+
+@[deprecated: 'use TextKind instead']
 pub enum MD_TEXTTYPE {
-	md_text_normal    = 0
+	md_text_normal
 	md_text_null_char
 	md_text_br
 	md_text_softbr
@@ -71,6 +92,18 @@ pub enum MD_TEXTTYPE {
 	md_text_latexmath
 }
 
+pub enum TextKind {
+	normal    = C.MD_TEXT_NORMAL
+	null_char = C.MD_TEXT_NULLCHAR
+	br        = C.MD_TEXT_BR
+	softbr    = C.MD_TEXT_SOFTBR
+	entity    = C.MD_TEXT_ENTITY
+	code      = C.MD_TEXT_CODE
+	html      = C.MD_TEXT_HTML
+	latexmath = C.MD_TEXT_LATEXMATH
+}
+
+@[deprecated: 'use SpanKind instead']
 pub enum MD_SPANTYPE {
 	md_span_em
 	md_span_strong
@@ -84,11 +117,32 @@ pub enum MD_SPANTYPE {
 	md_span_u
 }
 
+pub enum SpanKind {
+	em                = C.MD_SPAN_EM
+	strong            = C.MD_SPAN_STRONG
+	a                 = C.MD_SPAN_A
+	img               = C.MD_SPAN_IMG
+	code              = C.MD_SPAN_CODE
+	del               = C.MD_SPAN_DEL
+	latexmath         = C.MD_SPAN_LATEXMATH
+	latexmath_display = C.MD_SPAN_LATEXMATH_DISPLAY
+	wikilink          = C.MD_SPAN_WIKILINK
+	u                 = C.MD_SPAN_U
+}
+
+@[deprecated: 'use Align instead']
 pub enum MD_ALIGN {
 	md_align_default = 0
 	md_align_left
 	md_align_center
 	md_align_right
+}
+
+pub enum Align {
+	default = C.MD_ALIGN_DEFAULT
+	left    = C.MD_ALIGN_LEFT
+	center  = C.MD_ALIGN_CENTER
+	right   = C.MD_ALIGN_RIGHT
 }
 
 @[typedef]

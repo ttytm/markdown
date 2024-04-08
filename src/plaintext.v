@@ -38,35 +38,35 @@ fn (mut pt PlaintextRenderer) str() string {
 	return pt.writer.str()
 }
 
-fn (mut pt PlaintextRenderer) enter_block(typ MD_BLOCKTYPE, detail voidptr) ? {
+fn (mut pt PlaintextRenderer) enter_block(typ BlockKind, detail voidptr) ? {
 	// TODO Remove, functions can't have two args with name `_`
 	_ = typ
 	_ = detail
 }
 
-fn (mut pt PlaintextRenderer) leave_block(typ MD_BLOCKTYPE, _ voidptr) ? {
-	if typ !in [.md_block_doc, .md_block_hr, .md_block_html] {
+fn (mut pt PlaintextRenderer) leave_block(typ BlockKind, _ voidptr) ? {
+	if typ !in [.doc, .hr, .html] {
 		pt.writer.write_u8(`\n`)
 	}
 }
 
-fn (mut pt PlaintextRenderer) enter_span(typ MD_SPANTYPE, detail voidptr) ? {
+fn (mut pt PlaintextRenderer) enter_span(typ SpanKind, detail voidptr) ? {
 	// TODO Remove, functions can't have two args with name `_`
 	_ = typ
 	_ = detail
 }
 
-fn (mut pt PlaintextRenderer) leave_span(typ MD_SPANTYPE, detail voidptr) ? {
+fn (mut pt PlaintextRenderer) leave_span(typ SpanKind, detail voidptr) ? {
 	// TODO Remove, functions can't have two args with name `_`
 	_ = typ
 	_ = detail
 }
 
-fn (mut pt PlaintextRenderer) text(typ MD_TEXTTYPE, text string) ? {
+fn (mut pt PlaintextRenderer) text(typ TextKind, text string) ? {
 	match typ {
-		.md_text_null_char {}
-		.md_text_html {}
-		.md_text_br, .md_text_softbr {
+		.null_char {}
+		.html {}
+		.br, .softbr {
 			pt.writer.write_u8(`\n`)
 		}
 		else {

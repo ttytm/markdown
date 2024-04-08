@@ -218,7 +218,7 @@ fn test_render_entity() {
 fn test_attribute_transformer() ! {
 	mut renderer := HtmlRenderer{
 		transformer: &AttrTransformerFn(fn (parent ParentType, name string, value string) string {
-			if parent is MD_SPANTYPE && parent == .md_span_a {
+			if parent is SpanKind && parent == .a {
 				if name == 'href' && value == '.' {
 					return 'https://google.com'
 				}
@@ -240,7 +240,7 @@ fn (f &TestCodeFormatter) transform_attribute(parent ParentType, name string, va
 }
 
 fn (f &TestCodeFormatter) transform_content(parent ParentType, text string) string {
-	if text.trim_space().len != 0 && parent is MD_BLOCKTYPE && parent == .md_block_code {
+	if text.trim_space().len != 0 && parent is BlockKind && parent == .code {
 		return '<span class="keyword">language: ${f.language} >>> ${text}</span>'
 	}
 	return default_html_transformer.transform_content(parent, text)

@@ -30,11 +30,11 @@ module markdown
 pub interface Renderer {
 mut:
 	str() string
-	enter_block(typ MD_BLOCKTYPE, detail voidptr) ?
-	leave_block(typ MD_BLOCKTYPE, detail voidptr) ?
-	enter_span(typ MD_SPANTYPE, detail voidptr) ?
-	leave_span(typ MD_SPANTYPE, detail voidptr) ?
-	text(typ MD_TEXTTYPE, content string) ?
+	enter_block(typ BlockKind, detail voidptr) ?
+	leave_block(typ BlockKind, detail voidptr) ?
+	enter_span(typ SpanKind, detail voidptr) ?
+	leave_span(typ SpanKind, detail voidptr) ?
+	text(typ TextKind, content string) ?
 	debug_log(msg string)
 }
 
@@ -46,27 +46,27 @@ fn renderer_handle_error(err IError) int {
 	}
 }
 
-fn renderer_enter_block_cb(typ MD_BLOCKTYPE, detail voidptr, mut renderer Renderer) int {
+fn renderer_enter_block_cb(typ BlockKind, detail voidptr, mut renderer Renderer) int {
 	renderer.enter_block(typ, detail) or { return renderer_handle_error(err) }
 	return 0
 }
 
-fn renderer_leave_block_cb(typ MD_BLOCKTYPE, detail voidptr, mut renderer Renderer) int {
+fn renderer_leave_block_cb(typ BlockKind, detail voidptr, mut renderer Renderer) int {
 	renderer.leave_block(typ, detail) or { return renderer_handle_error(err) }
 	return 0
 }
 
-fn renderer_enter_span_cb(typ MD_SPANTYPE, detail voidptr, mut renderer Renderer) int {
+fn renderer_enter_span_cb(typ SpanKind, detail voidptr, mut renderer Renderer) int {
 	renderer.enter_span(typ, detail) or { return renderer_handle_error(err) }
 	return 0
 }
 
-fn renderer_leave_span_cb(typ MD_SPANTYPE, detail voidptr, mut renderer Renderer) int {
+fn renderer_leave_span_cb(typ SpanKind, detail voidptr, mut renderer Renderer) int {
 	renderer.leave_span(typ, detail) or { return renderer_handle_error(err) }
 	return 0
 }
 
-fn renderer_text_cb(typ MD_TEXTTYPE, text &char, size u32, mut renderer Renderer) int {
+fn renderer_text_cb(typ TextKind, text &char, size u32, mut renderer Renderer) int {
 	renderer.text(typ, unsafe { text.vstring_with_len(int(size)) }) or {
 		return renderer_handle_error(err)
 	}

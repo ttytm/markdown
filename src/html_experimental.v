@@ -31,7 +31,7 @@ import encoding.html
 import strings
 import datatypes { Stack }
 
-pub type ParentType = MD_BLOCKTYPE | MD_SPANTYPE
+pub type ParentType = BlockKind | SpanKind
 
 // HtmlTransformer transforms converted HTML elements (limited
 // to attribute and content for now) from markdown before incorporated
@@ -85,6 +85,8 @@ pub fn (t ContentTransformerFn) transform_content(parent ParentType, text string
 }
 
 pub fn (mut t ContentTransformerFn) config_set(key string, val string) {}
+
+const ignored_blocks = [BlockKind.doc, .html]
 
 fn tos_attribute(attr &C.MD_ATTRIBUTE, mut wr strings.Builder) {
 	for i := 0; unsafe { attr.substr_offsets[i] } < attr.size; i++ {
@@ -192,48 +194,35 @@ fn (mut ht HtmlRenderer) render_content() {
 	}
 }
 
-const html_block_tag_names = {
-	MD_BLOCKTYPE.md_block_quote: 'blockquote'
-	.md_block_ul:                'ul'
-	.md_block_ol:                'ol'
-	.md_block_li:                'li'
-	.md_block_hr:                'hr'
-	.md_block_h:                 'h'
-	.md_block_p:                 'p'
-	.md_block_code:              'pre'
-	.md_block_table:             'table'
-	.md_block_thead:             'thead'
-	.md_block_tbody:             'tbody'
-	.md_block_tr:                'tr'
-	.md_block_th:                'th'
-	.md_block_td:                'td'
-}
-
-const self_closing_block_types = [MD_BLOCKTYPE.md_block_hr]
-
-fn (mut ht HtmlRenderer) enter_block(typ MD_BLOCKTYPE, detail voidptr) ? {
+fn (mut ht HtmlRenderer) enter_block(typ BlockKind, detail voidptr) ? {
 	ht.parent_stack.push(ParentType(typ))
-	tag_name := markdown.html_block_tag_names[typ] or { return }
-	ht.writer.write_byte(`<`)
-	ht.writer.write_string(tag_name)
+	if typ !in markdown.ignored_blocks {
+		ht.writer.write_byte(`<`)
+		tag_name := match typ {
+			.code { 'pre' }
+			.quote { 'blockquote' }
+			else { typ.str() }
+		}
+		ht.writer.write_string(tag_name)
+	}
 	match typ {
-		.md_block_h {
+		.h {
 			level := unsafe { &C.MD_BLOCK_H_DETAIL(detail) }.level
 			ht.writer.write_string('${level}')
 		}
-		.md_block_ol {
+		.ol {
 			details := unsafe { &C.MD_BLOCK_OL_DETAIL(detail) }
 			if details.start > 1 {
 				ht.render_attribute('start', '${details.start}')
 			}
 		}
-		.md_block_li {
+		.li {
 			details := unsafe { &C.MD_BLOCK_LI_DETAIL(detail) }
 			if details.is_task {
 				ht.render_attribute('class', 'task-list-item')
 			}
 		}
-		.md_block_th, .md_block_td {
+		.th, .td {
 			details := unsafe { &C.MD_BLOCK_TD_DETAIL(detail) }
 			align := match details.align {
 				.md_align_left { 'left' }
@@ -247,14 +236,16 @@ fn (mut ht HtmlRenderer) enter_block(typ MD_BLOCKTYPE, detail voidptr) ? {
 		}
 		else {}
 	}
-	if typ in markdown.self_closing_block_types {
-		ht.writer.write_byte(` `)
-		ht.writer.write_byte(`/`)
+	if typ !in markdown.ignored_blocks {
+		if typ == .hr {
+			ht.writer.write_byte(` `)
+			ht.writer.write_byte(`/`)
+		}
+		ht.writer.write_byte(`>`)
 	}
-	ht.writer.write_byte(`>`)
 
 	// Extra HTML for li/code items
-	if typ == .md_block_code {
+	if typ == .code {
 		details := unsafe { &C.MD_BLOCK_CODE_DETAIL(detail) }
 		ht.writer.write_string('<code')
 		ht.render_md_attribute('class', details.lang,
@@ -262,7 +253,7 @@ fn (mut ht HtmlRenderer) enter_block(typ MD_BLOCKTYPE, detail voidptr) ? {
 			setting_key: 'code_language'
 		)
 		ht.writer.write_byte(`>`)
-	} else if typ == .md_block_li {
+	} else if typ == .li {
 		details := unsafe { &C.MD_BLOCK_LI_DETAIL(detail) }
 		if !details.is_task {
 			return
@@ -278,67 +269,58 @@ fn (mut ht HtmlRenderer) enter_block(typ MD_BLOCKTYPE, detail voidptr) ? {
 	}
 }
 
-fn (mut ht HtmlRenderer) leave_block(typ MD_BLOCKTYPE, detail voidptr) ? {
+fn (mut ht HtmlRenderer) leave_block(typ BlockKind, detail voidptr) ? {
 	ht.render_content()
 	ht.parent_stack.pop() or {}
-	if typ in markdown.self_closing_block_types {
+	if typ == .hr {
 		return
 	}
-	if typ == .md_block_code {
+	if typ == .code {
 		ht.writer.write_string('</code>')
 	}
-	tag_name := markdown.html_block_tag_names[typ] or { return }
-	ht.writer.write_byte(`<`)
-	ht.writer.write_byte(`/`)
-	ht.writer.write_string(tag_name)
-	if typ == .md_block_h {
+	if typ !in markdown.ignored_blocks {
+		ht.writer.write_byte(`<`)
+		ht.writer.write_byte(`/`)
+		tag_name := match typ {
+			.code { 'pre' }
+			.quote { 'blockquote' }
+			else { typ.str() }
+		}
+		ht.writer.write_string(tag_name)
+		defer {
+			ht.writer.write_byte(`>`)
+		}
+	}
+	if typ == .h {
 		level := unsafe { &C.MD_BLOCK_H_DETAIL(detail) }.level
 		ht.writer.write_string('${level}')
 	}
-	ht.writer.write_byte(`>`)
 }
 
-const html_span_tag_names = {
-	MD_SPANTYPE.md_span_em:     'em'
-	.md_span_strong:            'strong'
-	.md_span_a:                 'a'
-	.md_span_img:               'img'
-	.md_span_code:              'code'
-	.md_span_del:               'del'
-	.md_span_latexmath:         'x-equation'
-	.md_span_latexmath_display: 'x-equation'
-	.md_span_wikilink:          'x-wikilink'
-	.md_span_u:                 'u'
-}
-
-fn (mut ht HtmlRenderer) enter_span(typ MD_SPANTYPE, detail voidptr) ? {
+fn (mut ht HtmlRenderer) enter_span(typ SpanKind, detail voidptr) ? {
 	if ht.image_nesting_level > 0 {
 		return
 	}
-
 	ht.parent_stack.push(ParentType(typ))
-	tag_name := markdown.html_span_tag_names[typ] or { return }
-
 	ht.writer.write_byte(`<`)
-	ht.writer.write_string(tag_name)
-
+	ht.writer.write_string(typ.str())
 	match typ {
-		.md_span_a {
+		.a {
 			a_details := unsafe { &C.MD_SPAN_A_DETAIL(detail) }
 			ht.render_md_attribute('href', a_details.href)
 			ht.render_md_attribute('title', a_details.title)
 		}
-		.md_span_img {
+		.img {
 			img_details := unsafe { &C.MD_SPAN_IMG_DETAIL(detail) }
 			ht.render_md_attribute('src', img_details.src)
 			ht.render_opening_attribute('alt', true)
 			ht.image_nesting_level++
 			return
 		}
-		.md_span_latexmath_display {
+		.latexmath_display {
 			ht.render_attribute('type', 'display')
 		}
-		.md_span_wikilink {
+		.wikilink {
 			wikilink_details := unsafe { &C.MD_SPAN_WIKILINK_DETAIL(detail) }
 			ht.render_md_attribute('data-target', wikilink_details.target)
 		}
@@ -347,9 +329,9 @@ fn (mut ht HtmlRenderer) enter_span(typ MD_SPANTYPE, detail voidptr) ? {
 	ht.writer.write_byte(`>`)
 }
 
-fn (mut ht HtmlRenderer) leave_span(typ MD_SPANTYPE, detail voidptr) ? {
+fn (mut ht HtmlRenderer) leave_span(typ SpanKind, detail voidptr) ? {
 	if ht.image_nesting_level > 0 {
-		if ht.image_nesting_level == 1 && typ == .md_span_img {
+		if ht.image_nesting_level == 1 && typ == .img {
 			ht.render_closing_attribute()
 			img_details := unsafe { &C.MD_SPAN_IMG_DETAIL(detail) }
 			ht.render_md_attribute('title', img_details.title)
@@ -359,40 +341,38 @@ fn (mut ht HtmlRenderer) leave_span(typ MD_SPANTYPE, detail voidptr) ? {
 		}
 		return
 	}
-
 	ht.render_content()
 	ht.parent_stack.pop() or {}
-	tag_name := markdown.html_span_tag_names[typ] or { return }
 	ht.writer.write_byte(`<`)
 	ht.writer.write_byte(`/`)
-	ht.writer.write_string(tag_name)
+	ht.writer.write_string(typ.str())
 	ht.writer.write_byte(`>`)
 }
 
-fn (mut ht HtmlRenderer) text(typ MD_TEXTTYPE, text string) ? {
+fn (mut ht HtmlRenderer) text(typ TextKind, text string) ? {
 	match typ {
-		.md_text_null_char {
+		.null_char {
 			ht.writer.write_string('&#0')
 		}
-		.md_text_softbr {
+		.softbr {
 			if ht.image_nesting_level > 0 {
 				ht.writer.write_byte(` `)
 			}
 		}
-		.md_text_br {
+		.br {
 			ht.writer.write_string('<br />')
 		}
-		.md_text_entity {
+		.entity {
 			ht.writer.write_string(html.unescape(text, all: true))
 		}
-		.md_text_html {
+		.html {
 			ht.writer.write_string(text)
 		}
 		else {
 			if ht.image_nesting_level == 0 {
 				if parent := ht.parent_stack.peek() {
 					// Special code for code blocks
-					if parent is MD_BLOCKTYPE && parent == .md_block_code {
+					if parent is BlockKind && parent == .code {
 						ht.content_writer.write_string(text)
 						return
 					}
