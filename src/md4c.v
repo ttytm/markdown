@@ -114,6 +114,37 @@ pub enum SpanKind {
 	u                 = C.MD_SPAN_U
 }
 
+pub enum Flags {
+	collapse_whitespace        = C.MD_FLAG_COLLAPSEWHITESPACE // In MD_TEXT_NORMAL, collapse non-trivial whitespace into single ' '
+	permissive_atx_headers     = C.MD_FLAG_PERMISSIVEATXHEADERS // Do not require space in ATX headers ( ###header )
+	permissive_url_autolinks   = C.MD_FLAG_PERMISSIVEURLAUTOLINKS // Recognize URLs as autolinks even without '<', '>'
+	permissive_email_autolinks = C.MD_FLAG_PERMISSIVEEMAILAUTOLINKS // Recognize e-mails as autolinks even without '<', '>' and 'mailto:'
+	no_indented_code_blocks    = C.MD_FLAG_NOINDENTEDCODEBLOCKS // Disable indented code blocks. (Only fenced code works.)
+	no_html_blocks             = C.MD_FLAG_NOHTMLBLOCKS // Disable raw HTML blocks.
+	no_html_spans              = C.MD_FLAG_NOHTMLSPANS // Disable raw HTML (inline).
+	tables                     = C.MD_FLAG_TABLES // Enable tables extension.
+	strikethrough              = C.MD_FLAG_STRIKETHROUGH // Enable strikethrough extension.
+	permissive_wwwa_autolinks  = C.MD_FLAG_PERMISSIVEWWWAUTOLINKS // Enable WWW autolinks (even without any scheme prefix, if they begin with 'www.')
+	takslists                  = C.MD_FLAG_TASKLISTS // Enable task list extension.
+	latex_math                 = C.MD_FLAG_LATEXMATHSPANS // Enable $ and $$ containing LaTeX equations.
+	wikilinks                  = C.MD_FLAG_WIKILINKS // Enable wiki links extension.
+	underline                  = C.MD_FLAG_UNDERLINE // Enable underline extension (and disables '_' for normal emphasis).
+	hard_soft_breaks           = C.MD_FLAG_HARD_SOFT_BREAKS // Force all soft breaks to act as hard breaks.
+	permissive_autolinks       = C.MD_FLAG_PERMISSIVEAUTOLINKS
+	no_html                    = C.MD_FLAG_NOHTML
+	/* Convenient sets of flags corresponding to well-known Markdown dialects.
+ *
+ * Note we may only support subset of features of the referred dialect.
+ * The constant just enables those extensions which bring us as close as
+ * possible given what features we implement.
+ *
+ * ABI compatibility note: Meaning of these can change in time as new
+ * extensions, bringing the dialect closer to the original, are implemented.
+ */
+	dialect_commonmark         = C.MD_DIALECT_COMMONMARK
+	dialect_github             = C.MD_DIALECT_GITHUB
+}
+
 @[deprecated: 'use Align instead']
 pub enum MD_ALIGN {
 	md_align_default = 0
@@ -147,7 +178,7 @@ pub struct C.MD_ATTRIBUTE {
 pub:
 	text           &char
 	size           u32
-	substr_types   &MD_TEXTTYPE
+	substr_types   &TextKind
 	substr_offsets &u32
 }
 
@@ -215,19 +246,6 @@ pub:
 }
 
 fn C.md_parse(text &char, size u32, parser &C.MD_PARSER, userdata voidptr) int
-
-pub fn new(parser_flags u32, enter_block_cb BlockFn, leave_block_cb BlockFn, enter_span_cb SpanFn, leave_span_cb SpanFn, text_cb TextFn, debug_cb DebugFn) C.MD_PARSER {
-	return C.MD_PARSER{
-		abi_version: 0
-		flags: parser_flags
-		enter_block: enter_block_cb
-		leave_block: leave_block_cb
-		enter_span: enter_span_cb
-		leave_span: leave_span_cb
-		text: text_cb
-		debug_log: debug_cb
-	}
-}
 
 fn parse(text &char, size u32, parser &C.MD_PARSER, userdata voidptr) int {
 	return C.md_parse(text, size, parser, userdata)
